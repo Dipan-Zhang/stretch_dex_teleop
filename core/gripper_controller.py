@@ -8,13 +8,25 @@ from stretch_body.robot_params import RobotParams
 from hello_helpers import hello_misc as hm
 import urchin as urdf_loader
 import os
-import simple_ik as si
+import sys
 import argparse
-import loop_timer as lt
-import dex_teleop_parameters as dt
 from multiprocessing import shared_memory
 import pprint as pp
-import robot_move as rm
+
+# Handle imports for both package and standalone usage
+try:
+    from ..kinematics.simple_ik import SimpleIK
+    from ..utils.loop_timer import LoopTimer
+    from . import teleop_parameters as dt
+    from ..utils.robot_move import RobotMove
+except ImportError:
+    # Standalone usage
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+    from kinematics.simple_ik import SimpleIK
+    from utils.loop_timer import LoopTimer
+    from core import teleop_parameters as dt
+    from utils.robot_move import RobotMove
 
 
 def load_urdf(file_name):
@@ -50,7 +62,16 @@ class GripperToGoal:
         self.joints_allowed_to_move = ['stretch_gripper', 'joint_arm_l0', 'joint_lift', 'joint_wrist_yaw', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_mobile_base_rotate_by']
 
         # Get Wrist URDF joint limits
-        rotary_urdf_file_name = './stretch_base_rotation_ik_with_fixed_wrist.urdf'
+        # Try multiple locations for the URDF file
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        kinematics_urdfs = os.path.join(current_dir, 'kinematics', 'urdfs', 'stretch_base_rotation_ik_with_fixed_wrist.urdf')
+        root_urdf = os.path.join(current_dir, 'stretch_base_rotation_ik_with_fixed_wrist.urdf')
+        
+        if os.path.exists(kinematics_urdfs):
+            rotary_urdf_file_name = kinematics_urdfs
+        else:
+            rotary_urdf_file_name = root_urdf
+            
         rotary_urdf = load_urdf(rotary_urdf_file_name)
         wrist_joints = ['joint_wrist_yaw', 'joint_wrist_pitch', 'joint_wrist_roll']
         self.wrist_joint_limits = {}
@@ -93,7 +114,7 @@ class GripperToGoal:
         self.wrist_position_filter = dt.exponential_smoothing_for_position 
 
         # Initialize IK
-        self.simple_ik = si.SimpleIK()
+        self.simple_ik = SimpleIK()
         
         ##########################################################
         # Prepare the robot last to avoid errors due to blocking calls
@@ -106,7 +127,7 @@ class GripperToGoal:
         transport_version = self.robot.arm.motor.transport.version
         print('stretch_body using transport version =', transport_version)
 
-        self.robot_move = rm.RobotMove(self.robot, speed=robot_speed)
+        self.robot_move = RobotMove(self.robot, speed=robot_speed)
         self.robot_move.print_settings()
 
         self.robot_move.to_configuration(starting_configuration, speed='default')
@@ -126,7 +147,8 @@ class GripperToGoal:
 
     def __del__(self):
         print('GripperToGoal.__del__: stopping the robot')
-        self.robot.stop()
+        if hasattr(self, 'robot'):
+            self.robot.stop()
         
         
     def update_goal(self, grip_width, wrist_position, gripper_x_axis, gripper_y_axis, gripper_z_axis):
@@ -374,7 +396,7 @@ if __name__ == '__main__':
                      'gripper_y_axis': goal_y_axis,
                      'gripper_z_axis': goal_z_axis}
 
-    loop_timer = lt.LoopTimer()
+    loop_timer = LoopTimer()
     print_timing = True
     first_goal_received = False
     

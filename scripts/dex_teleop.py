@@ -1,12 +1,17 @@
 import numpy as np
-import webcam_teleop_interface as wt
-import simple_ik as si
+import sys
+import os
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from vision.webcam_teleop import WebcamArucoDetector
+from kinematics.simple_ik import SimpleIK
 import argparse
-import gripper_to_goal as gg
-import goal_from_teleop as gt
-import dex_teleop_parameters as dt
+from core.gripper_controller import GripperToGoal
+from core.goal_generator import GoalFromMarkers
+from core import teleop_parameters as dt
 import pprint as pp
-import loop_timer as lt
+from utils.loop_timer import LoopTimer
 
 
 if __name__ == '__main__':
@@ -40,23 +45,23 @@ if __name__ == '__main__':
     starting_configuration = dt.get_starting_configuration(lift_middle)
     
     if left_handed: 
-        webcam_aruco_detector = wt.WebcamArucoDetector(tongs_prefix='left', visualize_detections=False)
+        webcam_aruco_detector = WebcamArucoDetector(tongs_prefix='left', visualize_detections=False)
     else:
-        webcam_aruco_detector = wt.WebcamArucoDetector(tongs_prefix='right', visualize_detections=False)
+        webcam_aruco_detector = WebcamArucoDetector(tongs_prefix='right', visualize_detections=False)
     
     # Initialize IK
-    simple_ik = si.SimpleIK()
+    simple_ik = SimpleIK()
 
     # Define the center position for the wrist that corresponds with
     #the teleop origin.
     center_wrist_position = simple_ik.fk_rotary_base(center_configuration)
 
-    gripper_to_goal = gg.GripperToGoal(robot_speed, starting_configuration, dt.robot_allowed_to_move, using_stretch_2)
+    gripper_to_goal = GripperToGoal(robot_speed, starting_configuration, dt.robot_allowed_to_move, using_stretch_2)
 
-    goal_from_markers = gt.GoalFromMarkers(dt.teleop_origin, center_wrist_position, slide_lift_range=slide_lift_range)
+    goal_from_markers = GoalFromMarkers(dt.teleop_origin, center_wrist_position, slide_lift_range=slide_lift_range)
 
 
-    loop_timer = lt.LoopTimer()
+    loop_timer = LoopTimer()
     print_timing = False
     print_goal = False
     

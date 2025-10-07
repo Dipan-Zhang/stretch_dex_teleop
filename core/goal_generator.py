@@ -1,12 +1,24 @@
 import numpy as np
-import webcam_teleop_interface as wt
-import simple_ik as si
 import argparse
 import pprint as pp
-import loop_timer as lt
-import dex_teleop_parameters as dt
 from multiprocessing import shared_memory
 import os
+import sys
+
+# Handle imports for both package and standalone usage
+try:
+    from ..vision.webcam_teleop import WebcamArucoDetector
+    from ..kinematics.simple_ik import SimpleIK
+    from ..utils.loop_timer import LoopTimer
+    from . import teleop_parameters as dt
+except ImportError:
+    # Standalone usage
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+    from vision.webcam_teleop import WebcamArucoDetector
+    from kinematics.simple_ik import SimpleIK
+    from utils.loop_timer import LoopTimer
+    from core import teleop_parameters as dt
 
 
 class GoalFromMarkers:
@@ -208,12 +220,12 @@ if __name__ == '__main__':
     starting_configuration = dt.get_starting_configuration(lift_middle)
 
     if left_handed: 
-        webcam_aruco_detector = wt.WebcamArucoDetector(tongs_prefix='left', visualize_detections=False)
+        webcam_aruco_detector = WebcamArucoDetector(tongs_prefix='left', visualize_detections=False)
     else:
-        webcam_aruco_detector = wt.WebcamArucoDetector(tongs_prefix='right', visualize_detections=False)
+        webcam_aruco_detector = WebcamArucoDetector(tongs_prefix='right', visualize_detections=False)
     
     # Initialize IK
-    simple_ik = si.SimpleIK()
+    simple_ik = SimpleIK()
 
     # Define the center position for the wrist that corresponds with
     #the teleop origin.
@@ -230,7 +242,7 @@ if __name__ == '__main__':
 
         shared_memory_goal_array[:] = dt.get_do_nothing_goal_array()[:]
 
-    loop_timer = lt.LoopTimer()
+    loop_timer = LoopTimer()
     print_timing = True
     first_goal_sent = False
     

@@ -28,7 +28,14 @@ import numpy as np
 import pathlib
 import os
 import urchin as urdf_loader
-import simple_ik_equations_numba as ie
+import sys
+
+# Handle imports for both package and standalone usage
+try:
+    from . import ik_equations as ie
+except ImportError:
+    # Standalone usage
+    import ik_equations as ie
 
 
 def load_urdf(file_name):
@@ -77,8 +84,22 @@ class SimpleIK:
         
         self.end_effector_name = 'link_wrist_yaw'
 
-        self.rotary_urdf_file_name = './stretch_base_rotation_ik_with_fixed_wrist.urdf'
-        self.prismatic_urdf_file_name = './stretch_base_translation_ik_with_fixed_wrist.urdf' 
+        # Get the directory where this file is located
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        urdfs_dir = os.path.join(current_dir, 'urdfs')
+        
+        # URDF file paths - try multiple locations for flexibility
+        rotary_urdf_name = 'stretch_base_rotation_ik_with_fixed_wrist.urdf'
+        prismatic_urdf_name = 'stretch_base_translation_ik_with_fixed_wrist.urdf'
+        
+        # Check in kinematics/urdfs/ first, then fall back to root directory
+        if os.path.exists(os.path.join(urdfs_dir, rotary_urdf_name)):
+            self.rotary_urdf_file_name = os.path.join(urdfs_dir, rotary_urdf_name)
+            self.prismatic_urdf_file_name = os.path.join(urdfs_dir, prismatic_urdf_name)
+        else:
+            # Fall back to root directory
+            self.rotary_urdf_file_name = './' + rotary_urdf_name
+            self.prismatic_urdf_file_name = './' + prismatic_urdf_name
 
         self.rotary_urdf = load_urdf(self.rotary_urdf_file_name)
         self.prismatic_urdf = load_urdf(self.prismatic_urdf_file_name)

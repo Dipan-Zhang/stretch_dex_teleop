@@ -3,7 +3,12 @@ from urdf_parser_py import urdf as ud
 import numpy as np
 import pprint
 from copy import deepcopy
-import dex_teleop_parameters as dt
+import sys
+import os
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core import teleop_parameters as dt
 
 def save_urdf_file(robot, file_name):
     urdf_string = robot.to_xml_string()
@@ -259,9 +264,14 @@ for robot in [robot_rotary, robot_prismatic]:
 #print('after adding link and joint: robot =', robot)
 #print('************************************************')
 
+# Create output directory for URDFs
+output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'kinematics', 'urdfs')
+os.makedirs(output_dir, exist_ok=True)
+
 print()
-save_urdf_file(robot_rotary, 'stretch_base_rotation_ik.urdf')
-save_urdf_file(robot_prismatic, 'stretch_base_translation_ik.urdf')
+print(f'Saving URDF files to: {output_dir}')
+save_urdf_file(robot_rotary, os.path.join(output_dir, 'stretch_base_rotation_ik.urdf'))
+save_urdf_file(robot_prismatic, os.path.join(output_dir, 'stretch_base_translation_ik.urdf'))
 
 
 # Create versions with fixed wrists
@@ -282,6 +292,6 @@ for robot in [robot_rotary, robot_prismatic]:
             #print('(joint name, joint type) =', (joint.name, joint.type))
             joint.type = 'fixed'
             
-save_urdf_file(robot_rotary, 'stretch_base_rotation_ik_with_fixed_wrist.urdf')
-save_urdf_file(robot_prismatic, 'stretch_base_translation_ik_with_fixed_wrist.urdf')
+save_urdf_file(robot_rotary, os.path.join(output_dir, 'stretch_base_rotation_ik_with_fixed_wrist.urdf'))
+save_urdf_file(robot_prismatic, os.path.join(output_dir, 'stretch_base_translation_ik_with_fixed_wrist.urdf'))
 

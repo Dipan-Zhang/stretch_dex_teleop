@@ -2,7 +2,6 @@ import numpy as np
 import math
 from scipy.spatial.transform import Rotation
 import cv2
-import teleop_aruco_detector as ad
 import yaml
 from yaml.loader import SafeLoader
 import subprocess
@@ -10,9 +9,24 @@ import glob
 import sys
 from copy import deepcopy
 import time
-import webcam as wc
-import dex_teleop_parameters as dt
-from image_processing_helpers import fit_image_to_screen
+
+# Handle imports for both package and standalone usage
+try:
+    from . import aruco_detector as ad
+    from . import webcam as wc
+    from ..core import teleop_parameters as dt
+    from ..utils.image_helpers import fit_image_to_screen
+except ImportError:
+    # Standalone usage - add paths before importing
+    import os
+    vision_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(vision_dir)
+    sys.path.insert(0, vision_dir)
+    sys.path.insert(0, parent_dir)
+    import aruco_detector as ad
+    import webcam as wc
+    from core import teleop_parameters as dt
+    from utils.image_helpers import fit_image_to_screen
 
 
 def pixel_from_3d(xyz, camera_info):
