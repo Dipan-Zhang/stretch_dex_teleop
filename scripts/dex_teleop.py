@@ -22,6 +22,7 @@ if __name__ == '__main__':
     left_handed = args.left
     using_stretch_2 = args.stretch_2
     slide_lift_range = args.slide_lift_range
+    base_move_mode = args.base_move_mode
         
     # The 'default', 'slow', 'fast', and 'max' options are defined by
     # Hello Robot. The 'fastest_stretch_2' option has been specially tuned for
@@ -53,11 +54,24 @@ if __name__ == '__main__':
     simple_ik = SimpleIK()
 
     # Define the center position for the wrist that corresponds with
-    #the teleop origin.
-    center_wrist_position = simple_ik.fk_rotary_base(center_configuration)
+    #the teleop origin,
+    if base_move_mode == 'rotary':
+        center_wrist_position = simple_ik.fk_rotary_base(center_configuration) 
+    elif base_move_mode == 'prismatic':
+        center_wrist_position = simple_ik.fk_prismatic_base(center_configuration)
+    else:
+        raise ValueError(f'Invalid base move mode: {base_move_mode}')
 
-    gripper_to_goal = GripperToGoal(robot_speed, starting_configuration, dt.robot_allowed_to_move, using_stretch_2)
-
+    # controller 
+    gripper_to_goal = GripperToGoal(
+                        robot_speed, 
+                        starting_configuration, 
+                        dt.robot_allowed_to_move, 
+                        using_stretch_2, 
+                        base_move_mode
+                        )
+    
+    # goal pose from markers, directly in task space (6D pose)
     goal_from_markers = GoalFromMarkers(dt.teleop_origin, center_wrist_position, slide_lift_range=slide_lift_range)
 
 

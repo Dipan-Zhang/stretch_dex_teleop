@@ -51,7 +51,7 @@ def nan_in_configuration(configuration):
                 
 
 class GripperToGoal:
-    def __init__(self, robot_speed, starting_configuration, robot_allowed_to_move, using_stretch_2):
+    def __init__(self, robot_speed, starting_configuration, robot_allowed_to_move, using_stretch_2, base_move_mode):
         if using_stretch_2:
             self.grip_range = dt.dex_wrist_grip_range
         else:
@@ -59,7 +59,15 @@ class GripperToGoal:
             
         self.using_stretch_2 = using_stretch_2
                 
-        self.joints_allowed_to_move = ['stretch_gripper', 'joint_arm_l0', 'joint_lift', 'joint_wrist_yaw', 'joint_wrist_pitch', 'joint_wrist_roll', 'joint_mobile_base_rotate_by']
+        self.joints_allowed_to_move = ['stretch_gripper', 'joint_arm_l0', 'joint_lift', 
+                                       'joint_wrist_yaw', 'joint_wrist_pitch', 'joint_wrist_roll', 
+                                       ]
+        if base_move_mode == 'prismatic':
+            self.joints_allowed_to_move.append('joint_mobile_base_translate_by')
+        elif base_move_mode == 'rotary':
+            self.joints_allowed_to_move.append('joint_mobile_base_rotate_by')
+        
+        self.base_move_mode = base_move_mode
 
         # Get Wrist URDF joint limits
         # Try multiple locations for the URDF file
@@ -160,12 +168,22 @@ class GripperToGoal:
         # mobile base angle, lift distance, and arm
         # distance to achieve the goal wrist position in
         # the world frame.
-        new_goal_configuration = self.simple_ik.ik_rotary_base(wrist_position)
+
+        if self.base_move_mode == 'rotary':
+            new_goal_configuration = self.simple_ik.ik_rotary_base(wrist_position)
+        elif self.base_move_mode == 'prismatic':
+            new_goal_configuration = self.simple_ik.ik_prismatic_base(wrist_position)
+        else:
+            raise ValueError(f'Invalid base move mode: {self.base_move_mode}')
+
         if new_goal_configuration is None:
             print(f'WARNING: SimpleIK failed to find a valid new_goal_configuration so skipping this iteration by continuing the loop. Input to IK: wrist_position = {wrist_position}, Output from IK: new_goal_configuration = {new_goal_configuration}')
         else: 
-
-            new_wrist_position_configuration = np.array([new_goal_configuration['joint_mobile_base_rotation'],
+            if self.base_move_mode == 'rotary':
+                base_move_joint = new_goal_configuration['joint_mobile_base_rotation']
+            elif self.base_move_mode == 'prismatic':
+                base_move_joint = new_goal_configuration['joint_mobile_base_translation']
+            new_wrist_position_configuration = np.array([base_move_joint,
                                                          new_goal_configuration['joint_lift'],
                                                          new_goal_configuration['joint_arm_l0']])
 
@@ -300,16 +318,27 @@ class GripperToGoal:
             # using the most rececnt mobile base angle
             # estimate to reduce overshoot and other issues.
 
-            # convert base odometry angle to be in the range -pi to pi
-            # negative is to the robot's right side (counterclockwise)
-            # positive is to the robot's left side (clockwise)
-            base_odom_theta = hm.angle_diff_rad(self.robot.base.status['theta'], 0.0)
-            current_mobile_base_angle = base_odom_theta
 
-            new_goal_configuration['joint_mobile_base_rotation'] = self.filtered_wrist_position_configuration[0]
-            new_goal_configuration['joint_mobile_base_rotate_by'] = new_goal_configuration['joint_mobile_base_rotation'] - current_mobile_base_angle
+
+            if self.base_move_mode == 'prismatic':
+                current_mobile_base_translation = self.robot.base.status['x']
+                new_goal_configuration['joint_mobile_base_translation'] = self.filtered_wrist_position_configuration[0]
+                new_goal_configuration['joint_mobile_base_translate_by'] = new_goal_configuration['joint_mobile_base_translation'] - current_mobile_base_translation
+                del new_goal_configuration['joint_mobile_base_translation']
+
+            elif self.base_move_mode == 'rotary':
+                # convert base odometry angle to be in the range -pi to pi
+                # negative is to the robot's right side (counterclockwise)
+                # positive is to the robot's left side (clockwise)
+                base_odom_theta = hm.angle_diff_rad(self.robot.base.status['theta'], 0.0)
+                current_mobile_base_angle = base_odom_theta
+                new_goal_configuration['joint_mobile_base_rotation'] = self.filtered_wrist_position_configuration[0]
+                new_goal_configuration['joint_mobile_base_rotate_by'] = new_goal_configuration['joint_mobile_base_rotation'] - current_mobile_base_angle
+                del new_goal_configuration['joint_mobile_base_rotation']
+            else:
+                raise ValueError(f'Invalid base move mode: {self.base_move_mode}')
+
             # remove virtual joint and approximate motion with rotate_by using joint_mobile_base_rotate_by
-            del new_goal_configuration['joint_mobile_base_rotation']
 
 
             # If motion allowed, command the robot to move to the target configuration
@@ -377,7 +406,9 @@ if __name__ == '__main__':
     center_configuration = dt.get_center_configuration(lift_middle)
     starting_configuration = dt.get_starting_configuration(lift_middle)
     
-    gripper_to_goal = GripperToGoal(robot_speed, starting_configuration, robot_allowed_to_move, using_stretch_2)
+    # Default to rotary base mode for testing
+    base_move_mode = 'rotary'  # or 'prismatic'
+    gripper_to_goal = GripperToGoal(robot_speed, starting_configuration, robot_allowed_to_move, using_stretch_2, base_move_mode)
     
     if use_multiprocessing:
         shm = shared_memory.SharedMemory(name=dt.shared_memory_name, create=False)

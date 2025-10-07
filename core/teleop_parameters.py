@@ -13,6 +13,7 @@ def get_arg_parser():
     parser.add_argument('-s', '--stretch_2', action='store_true', help = 'Use a Stretch 2, which may require special settings.')
     parser.add_argument('-m', '--multiprocessing', action='store_true', help = 'Write goals to shared memory using Python multiprocessing.')
     parser.add_argument('-i', '--slide_lift_range', action='store_true', help = 'Holding the tongs high will gradually slide the lift range of motion upward. Holding them low will gradually slide the lift range of motion downward. The default is to use a fixed range of motion for the lift.')
+    parser.add_argument('-b', '--base_move_mode', default='prismatic', help = 'Use rotary or prismatic base move mode. The default is to use rotary base move mode.')
     
     return parser
 
@@ -172,6 +173,7 @@ def get_lift_middle(manipulate_on_ground):
 def get_center_configuration(lift_middle): 
     # manipulate lower objects
     center_configuration = {
+        'joint_mobile_base_translation': 0.0,
         'joint_mobile_base_rotation': 0.0,
         'joint_lift': lift_middle,
         'joint_arm_l0': 0.01,
