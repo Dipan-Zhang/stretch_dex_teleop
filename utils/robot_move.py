@@ -135,6 +135,7 @@ class RobotMove:
 
                 move_to_functions = {
                     'joint_mobile_base_rotate_by': partial(robot.base.rotate_by, v_r=base_rot_v, a_r=base_rot_a),
+                    'joint_mobile_base_translate_by': partial(robot.base.translate_by, v_m=base_rot_v, a_m=base_rot_a),
                     'joint_lift': partial(robot.lift.move_to, v_m=lift_v, a_m=lift_a), 
                     'joint_arm_l0': partial(robot.arm.move_to, v_m=lift_v, a_m=lift_a), 
                     'joint_wrist_yaw': partial(robot.end_of_arm.move_to, 'wrist_yaw', v_r=yaw_v, a_r=yaw_a),
@@ -145,6 +146,7 @@ class RobotMove:
 
                 move_to_settings = {
                     'joint_mobile_base_rotate_by': (None, {'v_r':base_rot_v, 'a_r':base_rot_a}),
+                    'joint_mobile_base_translate_by': (None, {'v_m':base_rot_v, 'a_m':base_rot_a}),
                     'joint_lift': (None, {'v_m':lift_v, 'a_m':lift_a}), 
                     'joint_arm_l0': (None, {'v_m':lift_v, 'a_m':lift_a}), 
                     'joint_wrist_yaw': ('wrist_yaw', {'joint': 'wrist_yaw','v_r':yaw_v, 'a_r':yaw_a}),
