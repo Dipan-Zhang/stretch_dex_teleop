@@ -79,18 +79,27 @@ if __name__ == '__main__':
     print_timing = False
     print_goal = False
     
-    while True:
-        loop_timer.start_of_iteration()
-        markers = webcam_aruco_detector.process_next_frame()
-        goal_dict = goal_from_markers.get_goal_dict(markers)
-        if goal_dict:
-            if print_goal:
-                print('goal_dict =')
-                pp.pprint(goal_dict)
-            gripper_to_goal.update_goal(**goal_dict)
-        loop_timer.end_of_iteration()
-        if print_timing: 
-            loop_timer.pretty_print()
+    try:
+        print('\nTeleop started. Press Ctrl+C to stop and save recording.\n')
+        while True:
+            loop_timer.start_of_iteration()
+            markers = webcam_aruco_detector.process_next_frame()
+            goal_dict = goal_from_markers.get_goal_dict(markers)
+            if goal_dict:
+                if print_goal:
+                    print('goal_dict =')
+                    pp.pprint(goal_dict)
+                gripper_to_goal.update_goal(**goal_dict)
+            loop_timer.end_of_iteration()
+            if print_timing: 
+                loop_timer.pretty_print()
+    except KeyboardInterrupt:
+        print('\n\nKeyboardInterrupt received (Ctrl+C pressed)')
+        print('Shutting down gracefully...')
+    finally:
+        # Always call cleanup to save recording and stop robot
+        gripper_to_goal.cleanup()
+        print('\nTeleop shutdown complete.')
 
 
 

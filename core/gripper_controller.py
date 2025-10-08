@@ -12,6 +12,9 @@ import sys
 import argparse
 from multiprocessing import shared_memory
 import pprint as pp
+import numpy as np
+import errno
+import time
 
 # Handle imports for both package and standalone usage
 try:
@@ -151,12 +154,39 @@ class GripperToGoal:
 
         self.max_allowed_wrist_yaw_change = dt.max_allowed_wrist_yaw_change
         self.max_allowed_wrist_roll_change = dt.max_allowed_wrist_roll_change
-    
+        self.RECORDING = True
+        if self.RECORDING:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            self.recording_file = os.path.join(os.path.dirname(__file__), 'recordings', f'recording_{timestamp}.npz')
+            self.joint_config_to_save = []
 
+    
     def __del__(self):
-        print('GripperToGoal.__del__: stopping the robot')
+        """
+        Destructor - calls cleanup if it hasn't been called yet.
+        Note: This is not guaranteed to be called, so cleanup() should be called explicitly.
+        """
+        # Only print if robot still exists (hasn't been cleaned up)
         if hasattr(self, 'robot'):
-            self.robot.stop()
+            print('\nGripperToGoal.cleanup: stopping the robot and saving recording')
+        
+        # Save recording if enabled
+        if self.RECORDING and len(self.joint_config_to_save) > 0:
+            try:
+                np.savez(self.recording_file, 
+                        base_move_mode=self.base_move_mode, 
+                        joint_config_to_save=self.joint_config_to_save)
+                print(f'\nRecording saved successfully!')
+                print(f'  File: {self.recording_file}')
+                print(f'  Configurations: {len(self.joint_config_to_save)}')
+            except Exception as e:
+                print(f'\nERROR: Failed to save recording: {e}')
+        elif self.RECORDING:
+            print('\nNo configurations recorded (recording was enabled but empty)')
+        
+        # Stop robot
+        self.robot.stop()
+        print('Robot stopped')
         
         
     def update_goal(self, grip_width, wrist_position, gripper_x_axis, gripper_y_axis, gripper_z_axis):
@@ -353,6 +383,8 @@ class GripperToGoal:
                     print('******************************************************************')
                     print()
                 else: 
+                    if self.RECORDING:
+                        self.joint_config_to_save.append(new_goal_configuration)
                     self.robot_move.to_configuration(new_goal_configuration, self.joints_allowed_to_move)
                     self.robot.push_command()
 
@@ -425,13 +457,15 @@ if __name__ == '__main__':
                      'wrist_position': goal_wrist_position,
                      'gripper_x_axis': goal_x_axis,
                      'gripper_y_axis': goal_y_axis,
-                     'gripper_z_axis': goal_z_axis}
+                     'gripper_z_axis': goal_z_axis
+                     }
 
     loop_timer = LoopTimer()
     print_timing = True
     first_goal_received = False
     
     try:
+        print('\nTeleop started. Press Ctrl+C to stop and save recording.\n')
         while True:
             loop_timer.start_of_iteration()
             if use_multiprocessing: 
@@ -455,9 +489,19 @@ if __name__ == '__main__':
             loop_timer.end_of_iteration()
             if print_timing:
                 loop_timer.pretty_print()
+    except KeyboardInterrupt:
+        print('\n\nKeyboardInterrupt received (Ctrl+C pressed)')
+        print('Shutting down gracefully...')
     finally:
-        print('cleaning up shared memory multiprocessing')
-        shm.close()
+        # Always call cleanup to save recording and stop robot
+        gripper_to_goal.cleanup()
+        
+        # Close shared memory if using multiprocessing
+        if use_multiprocessing:
+            print('Cleaning up shared memory multiprocessing')
+            shm.close()
+        
+        print('\nTeleop shutdown complete.')
         
 
 
